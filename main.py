@@ -1,13 +1,13 @@
 import cv2 as cv                                                                                                        # import openCV-contrib-python
 import numpy as np                                                                                                      # import numpy
-import time
+import time                                                                                                             # not used ...yet
 
 #Global parameters:
 FEED_RES_W = 1280
 FEED_RES_H = 720
 THRESH_VALUE = 32
 MIN_ARC_LENGTH = 100
-TRACE_PRECISION = 50
+TRACE_ROUGHNESS = 40
 STAGNATION_LIMIT = 15
 
 if __name__ == '__main__':                                                                                              # run only if not being imported
@@ -38,7 +38,7 @@ if __name__ == '__main__':                                                      
         for contour in contours:
             L = cv.arcLength(contour, True)                                                                             # arc length of current contour
             if L >= MIN_ARC_LENGTH:                                                                                     # ignore small contours
-                trace = cv.approxPolyDP(contour, TRACE_PRECISION, True)                                                 # approximate shape from contour
+                trace = cv.approxPolyDP(contour, TRACE_ROUGHNESS, True)                                                 # approximate shape from contour
                 if len(trace) == 3 or len(trace) == 4:                                                                  # ignore shapes without 3 or 4 sides
                     located += 1
                     cv.drawContours(traceField, [trace], 0, (255, 255, 255), 3)                                         # draw shape to shape canvas
@@ -51,8 +51,8 @@ if __name__ == '__main__':                                                      
                     cv.putText(ARframe, "pyramid", (x+2, y+h+12), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.0, (0, 0, 0), 2)     # put label in 'name tab' on output
         if located == 0:
             stagnation += 1                                                                                             # if no shapes found, increment counter
-            if stagnation < STAGNATION_LIMIT:                                                                           # if within limit, use last good rect
-                x, y, w, h, = previousRect
+            if stagnation < STAGNATION_LIMIT:
+                x, y, w, h, = previousRect                                                                              # if within limit, use last good rect
                 f = max(0, 255 - int(stagnation * (255/STAGNATION_LIMIT)))                                              # 'fading' font color for shape canvas
                 cv.putText(traceField, "pyramid?", (x + int(0.5 * float(w)), y + int(0.5 * float(h))),
                            cv.FONT_HERSHEY_COMPLEX_SMALL, 1.0, (f, f, f), 2)                                            # put label at last good location
@@ -62,17 +62,18 @@ if __name__ == '__main__':                                                      
         else:
             stagnation = 0                                                                                              # if >0 shapes found, reset counter
 
-        #Show images of various intermediate processing steps:
-        # cv.imshow("source", frame)
-        # cv.imshow("mask", mask)
-        # cv.imshow("masked", masked)
-        # cv.imshow("thresholded", thresh)
-        # cv.imshow("threshold masked", threshmasked)
-        # cv.imshow("blurred", blur)
-        # cv.imshow("boundaries", boundaries)
-        # cv.imshow("contours", contourField)
-        cv.imshow("shapes", traceField)
-        cv.imshow("goal locator", ARframe)
+        #Uncomment to show images of specific intermediate processing steps:
+        # cv.imshow("source", frame)                                                                                      # raw source image
+        # cv.imshow("mask", mask)                                                                                         # HSV mask
+        # cv.imshow("masked", masked)                                                                                     # masked source image
+        # cv.imshow("grayscale", gray)                                                                                    # masked image grayscaled
+        # cv.imshow("thresholded", thresh)                                                                                # brightness threshold mask
+        cv.imshow("threshold masked", threshmasked)                                                                     # masked source -> threshold masked
+        # cv.imshow("blurred", blur)                                                                                      # blurred image
+        # cv.imshow("boundaries", boundaries)                                                                             # detected edges
+        # cv.imshow("contours", contourField)                                                                             # raw contours
+        cv.imshow("shapes", traceField)                                                                                 # isolated shape tracing
+        cv.imshow("goal locator", ARframe)                                                                              # final "augmented reality" output
 
         if cv.waitKey(1) & 0xFF == ord('q'):                                                                            # delay 1 ms for input, check if 'q'
             feedRunning = False                                                                                         # if so, kill loop variable
