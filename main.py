@@ -3,8 +3,8 @@ import numpy as np                                                              
 import time                                                                                                             # not used ...yet
 
 #Global parameters:
-FEED_RES_W = 1280
-FEED_RES_H = 720
+FEED_RES_W = 854
+FEED_RES_H = 480
 THRESH_VALUE = 32
 MIN_ARC_LENGTH = 100
 TRACE_ROUGHNESS = 40
@@ -25,16 +25,16 @@ if __name__ == '__main__':                                                      
         mask = cv.inRange(frame, lowerR, upperR)                                                                        # HSV mask to filter out non-red pixels
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
         gray = cv.cvtColor(masked, cv.COLOR_BGR2GRAY)                                                                   # converted to grayscale
-        threshold, thresh = cv.threshold(gray, THRESH_VALUE, 255, cv.THRESH_BINARY)                                     # brightness threshold -> more filtering
+        threshold, thresh = cv.threshold(gray, THRESH_VALUE, 255, cv.THRESH_BINARY)                                     # brightness threshold to create mask
         threshmasked = cv.bitwise_and(masked, masked, mask=thresh)                                                      # masked again by threshold
-        blur = cv.GaussianBlur(gray, (7, 7), cv.BORDER_DEFAULT)                                                         # blur to soften tiny edges
+        blur = cv.GaussianBlur(threshmasked, (7, 7), cv.BORDER_DEFAULT)                                                 # blur to reduce small edges/noise
         boundaries = cv.Canny(blur, 40, 60)                                                                             # edge detection
         contours, hierarchies = cv.findContours(boundaries, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)                       # convert edges to contours
         contourField = np.zeros(frame.shape, dtype="uint8")                                                             # new canvas for contours
         cv.drawContours(contourField, contours, -1, (0, 0, 255), 2)                                                     # draw contours
         traceField = np.zeros(frame.shape, dtype="uint8")                                                               # new canvas for isolated shapes
         ARframe = frame.copy()                                                                                          # copy frame for final output
-        located = 0                                                                                                     # shapes counter
+        located = 0                                                                                                     # found shapes counter
         for contour in contours:
             L = cv.arcLength(contour, True)                                                                             # arc length of current contour
             if L >= MIN_ARC_LENGTH:                                                                                     # ignore small contours
@@ -64,6 +64,7 @@ if __name__ == '__main__':                                                      
 
         #Uncomment to show images of specific intermediate processing steps:
         # cv.imshow("source", frame)                                                                                      # raw source image
+        # cv.imshow("HSV", hsv)                                                                                           # HSV-converted source
         # cv.imshow("mask", mask)                                                                                         # HSV mask
         # cv.imshow("masked", masked)                                                                                     # masked source image
         # cv.imshow("grayscale", gray)                                                                                    # masked image grayscaled
