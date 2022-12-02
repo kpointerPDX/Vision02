@@ -3,8 +3,8 @@ import numpy as np                                                              
 import time                                                                                                             # not used ...yet
 
 #Global parameters:
-FEED_RES_W = 1280                                                                                                       # Video feed resolution width
-FEED_RES_H = 720                                                                                                        # Video feed resolution height
+FEED_RES_W = 1080                                                                                                       # Video feed resolution width
+FEED_RES_H = 608                                                                                                        # Video feed resolution height
 LOWER_HSV = np.array([-36, 0, 12])                                                                                      # Lowerbound of HSV mask
 UPPER_HSV = np.array([36, 255, 255])                                                                                    # Upperbound of HSV mask
 THRESH_VALUE = 32                                                                                                       # Brightness threshold for mask
@@ -13,6 +13,8 @@ MIN_ARC_LENGTH = 100                                                            
 MAX_ARC_LENGTH = 600                                                                                                    # Max. arc length threshold
 TRACE_ROUGHNESS = 40                                                                                                    # Allowed error from curve for polygon
 STAGNATION_LIMIT = 15                                                                                                   # Frames to "hold" last detected shape
+ADAPT_SENSITIVITY_INCR = 0                                                                                              # rate at which thresholds increase
+ADAPT_SENSITIVITY_DECR = 0                                                                                              # rate at which thresholds decrease
 
 if __name__ == '__main__':                                                                                              # run only if not being imported
     cam = cv.VideoCapture(0)                                                                                            # instantiate cam feed
@@ -54,7 +56,7 @@ if __name__ == '__main__':                                                      
         if located == 0:
             stagnation += 1                                                                                             # if no shapes found, increment counter
             if stagnation > 2:
-                ARC_LENGTH_THRESHOLD = max(MIN_ARC_LENGTH, ARC_LENGTH_THRESHOLD - 2)                                    # if >2 frames without, be less strict
+                ARC_LENGTH_THRESHOLD = max(MIN_ARC_LENGTH, ARC_LENGTH_THRESHOLD - ADAPT_SENSITIVITY_DECR)               # if >2 frames without, be less strict
             if stagnation < STAGNATION_LIMIT:
                 x, y, w, h, = previousRect                                                                              # if within limit, use last good rect
                 f = max(0, 255 - int(stagnation * (255/STAGNATION_LIMIT)))                                              # 'fading' font color for shape canvas
@@ -65,8 +67,8 @@ if __name__ == '__main__':                                                      
         else:
             stagnation = 0                                                                                              # if >0 shapes found, reset counter
             if located > 1:
-                ARC_LENGTH_THRESHOLD = min(MAX_ARC_LENGTH, ARC_LENGTH_THRESHOLD + 2)                                    # if more than one found, be more strict
-        cv.putText(traceField, str(ARC_LENGTH_THRESHOLD), (2, 14), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.0, (255, 255, 255), 1)# show current arc length threshold
+                ARC_LENGTH_THRESHOLD = min(MAX_ARC_LENGTH, ARC_LENGTH_THRESHOLD + ADAPT_SENSITIVITY_INCR)               # if more than one found, be more strict
+        cv.putText(traceField, str(ARC_LENGTH_THRESHOLD), (2, 14), cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (255, 255, 255), 1)# show current arc length threshold
 
         #Uncomment to show images of specific intermediate processing steps:
         # cv.imshow("source", frame)                                                                                      # raw source image
