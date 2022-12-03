@@ -1,20 +1,20 @@
 import cv2 as cv                                                                                                        # import openCV-contrib-python
 import numpy as np                                                                                                      # import numpy
-import time                                                                                                             # not used ...yet
 
 #Global parameters:
 FEED_RES_W = 1080                                                                                                       # Video feed resolution width
 FEED_RES_H = 608                                                                                                        # Video feed resolution height
-LOWER_HSV = np.array([-36, 0, 12])                                                                                      # Lowerbound of HSV mask
-UPPER_HSV = np.array([36, 255, 255])                                                                                    # Upperbound of HSV mask
+LOWER_BGR = np.array([0, 0, 0])                                                                                         # Lowerbound of BGR mask
+UPPER_BGR = np.array([32, 32, 255])                                                                                     # Upperbound of BGR mask
 THRESH_VALUE = 32                                                                                                       # Brightness threshold for mask
 ARC_LENGTH_THRESHOLD = 350                                                                                              # Arc length threshold for filtering
 MIN_ARC_LENGTH = 100                                                                                                    # Min. arc length threshold
 MAX_ARC_LENGTH = 600                                                                                                    # Max. arc length threshold
 TRACE_ROUGHNESS = 40                                                                                                    # Allowed error from curve for polygon
+MIN_AREA = 2000                                                                                                         # Minimum area filter for shapes
 STAGNATION_LIMIT = 15                                                                                                   # Frames to "hold" last detected shape
-ADAPT_SENSITIVITY_INCR = 0                                                                                              # rate at which thresholds increase
-ADAPT_SENSITIVITY_DECR = 0                                                                                              # rate at which thresholds decrease
+ADAPT_SENSITIVITY_INCR = 1                                                                                              # rate at which thresholds increase
+ADAPT_SENSITIVITY_DECR = 2                                                                                              # rate at which thresholds decrease
 
 if __name__ == '__main__':                                                                                              # run only if not being imported
     cam = cv.VideoCapture(0)                                                                                            # instantiate cam feed
@@ -25,8 +25,7 @@ if __name__ == '__main__':                                                      
     feedRunning = True                                                                                                  # boolean loop variable
     while feedRunning:
         ret, frame = cam.read()                                                                                         # frame = source video frame image
-        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)                                                                      # HSV-encoded copy of frame
-        mask = cv.inRange(frame, LOWER_HSV, UPPER_HSV)                                                                  # HSV mask to filter out non-red pixels
+        mask = cv.inRange(frame, LOWER_BGR, UPPER_BGR)                                                                  # HSV mask to filter out non-red pixels
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
         gray = cv.cvtColor(masked, cv.COLOR_BGR2GRAY)                                                                   # converted to grayscale
         threshold, thresh = cv.threshold(gray, THRESH_VALUE, 255, cv.THRESH_BINARY)                                     # brightness threshold to create mask
@@ -43,7 +42,8 @@ if __name__ == '__main__':                                                      
             L = cv.arcLength(contour, True)                                                                             # arc length of current contour
             if L >= ARC_LENGTH_THRESHOLD:                                                                               # ignore small contours
                 trace = cv.approxPolyDP(contour, TRACE_ROUGHNESS, True)                                                 # approximate shape from contour
-                if len(trace) >= 3 or len(trace) <= 4:                                                                  # ignore shapes without 3 or 4 sides
+                x, y, w, h, = cv.boundingRect(trace)                                                                    # get rectangle parameters
+                if (3 <= len(trace) <= 4) and (w * h > MIN_AREA):                                                       # ignore small shapes without 3-4 sides
                     located += 1
                     cv.drawContours(traceField, [trace], 0, (255, 255, 255), 3)                                         # draw shape to shape canvas
                     x, y, w, h, = cv.boundingRect(trace)                                                                # get rectangle parameters
@@ -67,12 +67,11 @@ if __name__ == '__main__':                                                      
         else:
             stagnation = 0                                                                                              # if >0 shapes found, reset counter
             if located > 1:
-                ARC_LENGTH_THRESHOLD = min(MAX_ARC_LENGTH, ARC_LENGTH_THRESHOLD + ADAPT_SENSITIVITY_INCR)               # if more than one found, be more strict
+                ARC_LENGTH_THRESHOLD = min(MAX_ARC_LENGTH, ARC_LENGTH_THRESHOLD + ADAPT_SENSITIVITY_INCR)               # if multiple found, be more strict
         cv.putText(traceField, str(ARC_LENGTH_THRESHOLD), (2, 14), cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (255, 255, 255), 1)# show current arc length threshold
 
         #Uncomment to show images of specific intermediate processing steps:
         # cv.imshow("source", frame)                                                                                      # raw source image
-        # cv.imshow("HSV", hsv)                                                                                           # HSV-converted source
         # cv.imshow("mask", mask)                                                                                         # HSV mask
         # cv.imshow("masked", masked)                                                                                     # masked source image
         # cv.imshow("grayscale", gray)                                                                                    # masked image grayscaled
