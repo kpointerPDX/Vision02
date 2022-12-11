@@ -8,15 +8,9 @@ LOWER_HSV1 = np.array([0, 128, 32])                                             
 UPPER_HSV1 = np.array([12, 255, 255])
 LOWER_HSV2 = np.array([164, 96, 32])
 UPPER_HSV2 = np.array([180, 255, 255])
-THRESH_VALUE = 32                                                                                                       # Brightness threshold for mask
 ARC_LENGTH_THRESHOLD = 350                                                                                              # Arc length threshold for filtering
-MIN_ARC_LENGTH = 100                                                                                                    # Min. arc length threshold
-MAX_ARC_LENGTH = 600                                                                                                    # Max. arc length threshold
 TRACE_ROUGHNESS = 40                                                                                                    # Allowed error from curve for polygon
-MIN_AREA = 2000                                                                                                         # Minimum area filter for shapes
 STAGNATION_LIMIT = 15                                                                                                   # Frames to "hold" last detected shape
-ADAPT_SENSITIVITY_INCR = 1                                                                                              # rate at which thresholds increase
-ADAPT_SENSITIVITY_DECR = 2                                                                                              # rate at which thresholds decrease
 
 if __name__ == '__main__':                                                                                              # run only if not being imported
     cam = cv.VideoCapture(0)                                                                                            # instantiate cam feed
@@ -27,26 +21,26 @@ if __name__ == '__main__':                                                      
     feedRunning = True                                                                                                  # boolean loop variable
     while feedRunning:
         ret, frame = cam.read()                                                                                         # frame = source video frame image
-        hsvFrame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        hsvFrame = cv.GaussianBlur(hsvFrame, (51, 51), cv.BORDER_DEFAULT)
+        ARframe = frame.copy()                                                                                          # copy frame for final output
+        hsvFrame = cv.GaussianBlur(frame, (11, 11), cv.BORDER_DEFAULT)
+        hsvFrame = cv.cvtColor(hsvFrame, cv.COLOR_BGR2HSV)
         mask1 = cv.inRange(hsvFrame, LOWER_HSV1, UPPER_HSV1)                                                            # HSV mask to cover the bottom hues
         mask2 = cv.inRange(hsvFrame, LOWER_HSV2, UPPER_HSV2)                                                            # HSV mask to cover the top hues
         mask = cv.bitwise_or(mask1, mask2)
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
-        masked = cv.GaussianBlur(masked, (7, 7), cv.BORDER_DEFAULT)                                                     # blur to reduce small edges/noise
+        masked = cv.GaussianBlur(masked, (11, 11), cv.BORDER_DEFAULT)                                                     # blur to reduce small edges/noise
         boundaries = cv.Canny(masked, 40, 60)                                                                           # edge detection
         contours, hierarchies = cv.findContours(boundaries, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)                       # convert edges to contours
         contourField = np.zeros(frame.shape, dtype="uint8")                                                             # new canvas for contours
         cv.drawContours(contourField, contours, -1, (0, 0, 255), 2)                                                     # draw contours
         traceField = np.zeros(frame.shape, dtype="uint8")                                                               # new canvas for isolated shapes
-        ARframe = frame.copy()                                                                                          # copy frame for final output
         located = 0                                                                                                     # found shapes counter
         for contour in contours:
             L = cv.arcLength(contour, True)                                                                             # arc length of current contour
             if L >= ARC_LENGTH_THRESHOLD:                                                                               # ignore small contours
                 trace = cv.approxPolyDP(contour, TRACE_ROUGHNESS, True)                                                 # approximate shape from contour
                 x, y, w, h, = cv.boundingRect(trace)                                                                    # get rectangle parameters
-                if (3 <= len(trace) <= 4) and (w * h > MIN_AREA):                                                       # ignore small shapes without 3-4 sides
+                if (3 <= len(trace) <= 4):                                                                              # ignore shapes without 3-4 sides
                     located += 1
                     cv.drawContours(traceField, [trace], 0, (255, 255, 255), 3)                                         # draw shape to shape canvas
                     x, y, w, h, = cv.boundingRect(trace)                                                                # get rectangle parameters
@@ -58,8 +52,6 @@ if __name__ == '__main__':                                                      
                     cv.putText(ARframe, "pyramid", (x+2, y+h+12), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.0, (0, 0, 0), 2)     # put label in 'name tab' on output
         if located == 0:
             stagnation += 1                                                                                             # if no shapes found, increment counter
-            if stagnation > 2:
-                ARC_LENGTH_THRESHOLD = max(MIN_ARC_LENGTH, ARC_LENGTH_THRESHOLD - ADAPT_SENSITIVITY_DECR)               # if >2 frames without, be less strict
             if stagnation < STAGNATION_LIMIT:
                 x, y, w, h, = previousRect                                                                              # if within limit, use last good rect
                 f = max(0, 255 - int(stagnation * (255/STAGNATION_LIMIT)))                                              # 'fading' font color for shape canvas
@@ -69,21 +61,17 @@ if __name__ == '__main__':                                                      
                 cv.putText(ARframe, "pyramid", (x + 2, y + h + 12), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.0, (0, 0, 0), 2)   # redraw last good label on output
         else:
             stagnation = 0                                                                                              # if >0 shapes found, reset counter
-            if located > 1:
-                ARC_LENGTH_THRESHOLD = min(MAX_ARC_LENGTH, ARC_LENGTH_THRESHOLD + ADAPT_SENSITIVITY_INCR)               # if multiple found, be more strict
-        cv.putText(traceField, str(ARC_LENGTH_THRESHOLD), (2, 14), cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (255, 255, 255), 1)# show current arc length threshold
 
         #Uncomment to show images of specific intermediate processing steps:
         # cv.imshow("source", frame)                                                                                      # raw source image
         # cv.imshow("mask", mask)                                                                                         # HSV mask
-        cv.imshow("masked", masked)                                                                                     # masked source image
-        # cv.imshow("blurred", blur)                                                                                      # blurred image
-        # cv.imshow("boundaries", boundaries)                                                                             # detected edges
-        # cv.imshow("contours", contourField)                                                                             # raw contours
+        # cv.imshow("masked", masked)                                                                                     # masked source image
+        # cv.imshow("boundaries", boundaries)                                                                             # detected edges (Canny)
+        cv.imshow("contours", contourField)                                                                             # raw contours
         cv.imshow("shapes", traceField)                                                                                 # isolated shape tracing
         cv.imshow("goal locator", ARframe)                                                                              # final "augmented reality" output
 
-        if cv.waitKey(1) & 0xFF == ord('q'):                                                                            # delay 1 ms for input, check if 'q'
+        if cv.waitKey(1) & 0xFF == ord('q'):                                                                            # delay 1 ms for input; is 'q' pressed?
             feedRunning = False                                                                                         # if so, kill loop variable
 
     cam.release()                                                                                                       # safely stop video feed
