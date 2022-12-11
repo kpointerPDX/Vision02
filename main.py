@@ -4,8 +4,10 @@ import numpy as np                                                              
 #Global parameters:
 FEED_RES_W = 1080                                                                                                       # Video feed resolution width
 FEED_RES_H = 608                                                                                                        # Video feed resolution height
-LOWER_BGR = np.array([0, 0, 0])                                                                                         # Lowerbound of BGR mask
-UPPER_BGR = np.array([32, 32, 255])                                                                                     # Upperbound of BGR mask
+LOWER_HSV1 = np.array([0, 128, 32])                                                                                     # range values specifying HSV masks
+UPPER_HSV1 = np.array([12, 255, 255])
+LOWER_HSV2 = np.array([164, 96, 32])
+UPPER_HSV2 = np.array([180, 255, 255])
 THRESH_VALUE = 32                                                                                                       # Brightness threshold for mask
 ARC_LENGTH_THRESHOLD = 350                                                                                              # Arc length threshold for filtering
 MIN_ARC_LENGTH = 100                                                                                                    # Min. arc length threshold
@@ -27,12 +29,8 @@ if __name__ == '__main__':                                                      
         ret, frame = cam.read()                                                                                         # frame = source video frame image
         hsvFrame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsvFrame = cv.GaussianBlur(hsvFrame, (51, 51), cv.BORDER_DEFAULT)
-        lowerHSV1 = np.array([0, 128, 32])                                                                              # range values specifying HSV masks
-        upperHSV1 = np.array([12, 255, 255])
-        lowerHSV2 = np.array([164, 96, 32])
-        upperHSV2 = np.array([180, 255, 255])
-        mask1 = cv.inRange(hsvFrame, lowerHSV1, upperHSV1)                                                              # HSV mask to cover the bottom hues
-        mask2 = cv.inRange(hsvFrame, lowerHSV2, upperHSV2)                                                              # HSV mask to cover the top hues
+        mask1 = cv.inRange(hsvFrame, LOWER_HSV1, UPPER_HSV1)                                                            # HSV mask to cover the bottom hues
+        mask2 = cv.inRange(hsvFrame, LOWER_HSV2, UPPER_HSV2)                                                            # HSV mask to cover the top hues
         mask = cv.bitwise_or(mask1, mask2)
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
         masked = cv.GaussianBlur(masked, (7, 7), cv.BORDER_DEFAULT)                                                     # blur to reduce small edges/noise
