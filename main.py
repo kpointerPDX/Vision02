@@ -22,13 +22,13 @@ if __name__ == '__main__':                                                      
     while feedRunning:
         ret, frame = cam.read()                                                                                         # frame = source video frame image
         ARframe = frame.copy()                                                                                          # copy frame for final output
-        hsvFrame = cv.GaussianBlur(frame, (11, 11), cv.BORDER_DEFAULT)
-        hsvFrame = cv.cvtColor(hsvFrame, cv.COLOR_BGR2HSV)
+        hsvFrame = cv.GaussianBlur(frame, (11, 11), cv.BORDER_DEFAULT)                                                  # blur first...
+        hsvFrame = cv.cvtColor(hsvFrame, cv.COLOR_BGR2HSV)                                                              # ...then convert to HSV
         mask1 = cv.inRange(hsvFrame, LOWER_HSV1, UPPER_HSV1)                                                            # HSV mask to cover the bottom hues
         mask2 = cv.inRange(hsvFrame, LOWER_HSV2, UPPER_HSV2)                                                            # HSV mask to cover the top hues
         mask = cv.bitwise_or(mask1, mask2)
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
-        masked = cv.GaussianBlur(masked, (11, 11), cv.BORDER_DEFAULT)                                                     # blur to reduce small edges/noise
+        masked = cv.GaussianBlur(masked, (11, 11), cv.BORDER_DEFAULT)                                                   # blur to reduce small edges/noise
         boundaries = cv.Canny(masked, 40, 60)                                                                           # edge detection
         contours, hierarchies = cv.findContours(boundaries, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)                       # convert edges to contours
         contourField = np.zeros(frame.shape, dtype="uint8")                                                             # new canvas for contours
