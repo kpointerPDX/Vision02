@@ -25,13 +25,18 @@ if __name__ == '__main__':                                                      
     feedRunning = True                                                                                                  # boolean loop variable
     while feedRunning:
         ret, frame = cam.read()                                                                                         # frame = source video frame image
-        mask = cv.inRange(frame, LOWER_BGR, UPPER_BGR)                                                                  # HSV mask to filter out non-red pixels
+        hsvFrame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        hsvFrame = cv.GaussianBlur(hsvFrame, (51, 51), cv.BORDER_DEFAULT)
+        lowerHSV1 = np.array([0, 128, 32])                                                                              # range values specifying HSV masks
+        upperHSV1 = np.array([12, 255, 255])
+        lowerHSV2 = np.array([164, 96, 32])
+        upperHSV2 = np.array([180, 255, 255])
+        mask1 = cv.inRange(hsvFrame, lowerHSV1, upperHSV1)                                                              # HSV mask to cover the bottom hues
+        mask2 = cv.inRange(hsvFrame, lowerHSV2, upperHSV2)                                                              # HSV mask to cover the top hues
+        mask = cv.bitwise_or(mask1, mask2)
         masked = cv.bitwise_and(frame, frame, mask=mask)                                                                # masked frame image
-        gray = cv.cvtColor(masked, cv.COLOR_BGR2GRAY)                                                                   # converted to grayscale
-        threshold, thresh = cv.threshold(gray, THRESH_VALUE, 255, cv.THRESH_BINARY)                                     # brightness threshold to create mask
-        threshmasked = cv.bitwise_and(masked, masked, mask=thresh)                                                      # masked again by threshold
-        blur = cv.GaussianBlur(threshmasked, (7, 7), cv.BORDER_DEFAULT)                                                 # blur to reduce small edges/noise
-        boundaries = cv.Canny(blur, 40, 60)                                                                             # edge detection
+        masked = cv.GaussianBlur(masked, (7, 7), cv.BORDER_DEFAULT)                                                     # blur to reduce small edges/noise
+        boundaries = cv.Canny(masked, 40, 60)                                                                           # edge detection
         contours, hierarchies = cv.findContours(boundaries, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)                       # convert edges to contours
         contourField = np.zeros(frame.shape, dtype="uint8")                                                             # new canvas for contours
         cv.drawContours(contourField, contours, -1, (0, 0, 255), 2)                                                     # draw contours
@@ -73,10 +78,7 @@ if __name__ == '__main__':                                                      
         #Uncomment to show images of specific intermediate processing steps:
         # cv.imshow("source", frame)                                                                                      # raw source image
         # cv.imshow("mask", mask)                                                                                         # HSV mask
-        # cv.imshow("masked", masked)                                                                                     # masked source image
-        # cv.imshow("grayscale", gray)                                                                                    # masked image grayscaled
-        # cv.imshow("thresholded", thresh)                                                                                # brightness threshold mask
-        cv.imshow("threshold masked", threshmasked)                                                                     # masked source -> threshold masked
+        cv.imshow("masked", masked)                                                                                     # masked source image
         # cv.imshow("blurred", blur)                                                                                      # blurred image
         # cv.imshow("boundaries", boundaries)                                                                             # detected edges
         # cv.imshow("contours", contourField)                                                                             # raw contours
